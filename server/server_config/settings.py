@@ -31,6 +31,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'corsheaders',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -47,6 +48,7 @@ INSTALLED_APPS = [
      # Ajoutez d'autres applications ici si nécessaire
 ]
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -156,4 +158,11 @@ DJOSER = {
     'JWT_AUTH_HEADER': 'HTTP_AUTHORIZATION',
     'JWT_AUTH_HEADER_PREFIX': 'Bearer',
 }
+
+# Configuration CORS
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173", # L'origine de votre serveur de développement Vite
+    "http://127.0.0.1:5173", # Inclure aussi 127.0.0.1 au cas où
+    # Ajoutez ici d'autres origines si nécessaire (par exemple, l'URL de votre frontend déployé)
+]
 

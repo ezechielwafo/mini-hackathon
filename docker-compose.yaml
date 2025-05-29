@@ -1,0 +1,67 @@
+version: '3.8' # Utilisez une version récente de Docker Compose
+
+services:
+
+  database:
+    image: postgres:13-alpine # Utilisez une image PostgreSQL légère
+    container_name: taskmaster_db
+    ports:
+      - "5432:5432" # Mappe le port 5432 de l'hôte au port 5432 du conteneur
+    environment:
+      POSTGRES_DB: ${DB_NAME:-taskmaster_db} # Nom de la base de données (lu depuis .env ou valeur par défaut)
+      POSTGRES_USER: ${DB_USER:-taskmaster_user} # Utilisateur de la base de données
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-taskmaster_password} # Mot de passe de la base de données
+    volumes:
+      - db_data:/var/lib/postgresql/data # Volume pour persister les données de la base de données
+    healthcheck: # Vérification de l'état de la base de données
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-taskmaster_user} -d ${DB_NAME:-taskmaster_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./server # Construit l'image à partir du Dockerfile dans le répertoire ./server
+    container_name: taskmaster_backend
+    command: poetry run python manage.py runserver 0.0.0.0:8000 # Commande pour lancer le serveur Django
+    volumes:
+      - ./server:/app # Mappe le répertoire ./server de l'hôte au répertoire /app dans le conteneur
+    ports:
+      - "8000:8000" # Mappe le port 8000 de l'hôte au port 8000 du conteneur (utile pour le débogage direct)
+    environment:
+      DATABASE_URL: postgres://${DB_USER:-taskmaster_user}:${DB_PASSWORD:-taskmaster_password}@database:5432/${DB_NAME:-taskmaster_db} # URL de la base de données (utilise le nom du service 'database')
+      SECRET_KEY: ${SECRET_KEY:-insecure-fallback-key} # Clé secrète Django
+      # Ajoutez ici d'autres variables d'environnement Django si nécessaire
+    depends_on:
+      database:
+        condition: service_healthy # Démarre le backend seulement si la base de données est saine
+
+  frontend:
+    build: ./client # Construit l'image à partir du Dockerfile dans le répertoire ./client
+    container_name: taskmaster_frontend
+    command: npm run dev -- --host 0.0.0.0 # Commande pour lancer le serveur de développement Vite (écoute sur toutes les interfaces)
+    volumes:
+      - ./client:/app # Mappe le répertoire ./client de l'hôte au répertoire /app dans le conteneur
+      - /app/node_modules # Volume anonyme pour éviter de mapper node_modules de l'hôte (peut causer des problèmes)
+    ports:
+      - "5173:5173" # Mappe le port 5173 de l'hôte au port 5173 du conteneur
+    environment:
+      VITE_API_URL: http://backend:8000/api/ # URL de l'API backend (utilise le nom du service 'backend')
+      # Ajoutez ici d'autres variables d'environnement Vite si nécessaire
+    depends_on:
+      - backend # Démarre le frontend après le backend
+
+  nginx:
+    build: ./proxy # Construit l'image à partir du Dockerfile dans le répertoire ./proxy
+    container_name: taskmaster_nginx
+    ports:
+      - "80:80" # Mappe le port 80 de l'hôte au port 80 du conteneur (port HTTP standard)
+    volumes:
+      - ./proxy/nginx.conf:/etc/nginx/nginx.conf:ro # Mappe le fichier de configuration Nginx
+      # Si vous servez des fichiers statiques du backend via Nginx, vous devrez mapper le répertoire staticfiles
+      # - ./server/staticfiles:/app/staticfiles:ro
+    depends_on:
+      - frontend # Démarre Nginx après le frontend
+      - backend # Démarre Nginx après le backend
+
+volumes:
+  db_data: # Définit le volume pour les données de la base de données
