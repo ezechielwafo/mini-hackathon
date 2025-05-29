@@ -37,8 +37,15 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-]
+    # Vos applications locales
+    'tasks', # Ajoutez cette ligne
 
+    # Applications tierces
+    'rest_framework', # Ajoutez cette ligne
+    'rest_framework_simplejwt', # Ajoutez cette ligne
+    'djoser', # Ajoutez cette ligne
+     # Ajoutez d'autres applications ici si nécessaire
+]
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -120,3 +127,33 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Ajoutez cette configuration pour DRF (peut être ajustée plus tard)
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated', # Par défaut, les vues nécessitent une authentification
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication', # Authentification par session (utile pour l'admin Django)
+        'rest_framework.authentication.BasicAuthentication', # Authentification basique (pour les tests rapides)
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        # Ajoutez ici les classes d'authentification pour JWT plus tard
+    ],
+}
+DJOSER = {
+    'PASSWORD_RESET_CONFIRM_URL': '#/password/reset/confirm/{uid}/{token}',
+    'USERNAME_RESET_CONFIRM_URL': '#/username/reset/confirm/{uid}/{token}',
+    'ACTIVATION_URL': '#/activate/{uid}/{token}',
+    'SEND_ACTIVATION_EMAIL': False, # Mettez à True si vous voulez envoyer des emails d'activation
+    'SERIALIZERS': {
+        'user_create': 'djoser.serializers.UserCreateSerializer',
+        'user': 'djoser.serializers.UserSerializer',
+        'current_user': 'djoser.serializers.UserSerializer',
+        'token': 'djoser.serializers.TokenSerializer', # Si vous utilisez des tokens simples
+        'token_create': 'djoser.serializers.TokenCreateSerializer', # Si vous utilisez des tokens simples
+    },
+    'JWT_AUTH': True, # Indique à Djoser d'utiliser l'authentification JWT
+    'JWT_AUTH_HEADER': 'HTTP_AUTHORIZATION',
+    'JWT_AUTH_HEADER_PREFIX': 'Bearer',
+}
+
