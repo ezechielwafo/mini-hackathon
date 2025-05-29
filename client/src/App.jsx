@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage'; // Importe le composant LoginPage
+import ProjectDetailPage from './pages/ProjectDetailPage'; 
 import ProjectsPage from './pages/ProjectsPage'; // Assurez-vous que cette ligne est présente et non commentée
 // Importez ici les autres pages que vous créerez (ProjectDetailPage)
 // import ProjectDetailPage from './pages/ProjectDetailPage';
@@ -38,7 +39,15 @@ function App() {
               </PrivateRoute>
             }
           />
-
+	 {/* Ajoutez cette route pour la page de détail du projet */}
+           <Route
+            path="/projects/:projectId"
+            element={
+              <PrivateRoute>
+                <ProjectDetailPage />
+              </PrivateRoute>
+            }
+          />
            {/* Exemple de route privée pour la page de détail d'un projet */}
            {/*
            <Route
