@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main # Déclenche le workflow sur les push vers la branche main
+      - develop # Déclenche le workflow sur les push vers la branche develop
+  pull_request:
+    branches:
+      - main
+      - develop # Déclenche le workflow sur les pull requests vers main ou develop
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest # Exécute le job sur une machine virtuelle Ubuntu
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4 # Récupère le code du dépôt
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3 # Configure Buildx pour une construction efficace
+
+      - name: Build Docker images
+        # Construit les images Docker Compose sans cache
+        # Les variables du .env racine (comme DB_*, SECRET_KEY) sont utilisées ici si elles sont référencées dans docker-compose.yaml
+        run: docker compose build --no-cache
+
+      - name: Run migrations (Backend)
+        # Exécute les migrations dans un conteneur backend temporaire
+        # Les variables d'environnement sont passées via 'env'
+        run: docker compose run --rm backend poetry run python manage.py migrate --noinput
+        env:
+          # Passe les variables d'environnement nécessaires pour la base de données et Django
+          # Ces valeurs sont lues depuis les secrets GitHub configurés dans les paramètres du dépôt
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          # Définissez APP_ENV pour l'environnement de CI (probablement 'docker')
+          APP_ENV: docker
+          # Si vous avez configuré createsuperuser --noinput dans l'entrypoint
+          # et que vous voulez le tester en CI, passez aussi ces variables:
+          # DJANGO_SUPERUSER_USERNAME: ${{ secrets.SUPERUSER_USERNAME }}
+          # DJANGO_SUPERUSER_EMAIL: ${{ secrets.SUPERUSER_EMAIL }}
+          # DJANGO_SUPERUSER_PASSWORD: ${{ secrets.SUPERUSER_PASSWORD }}
+
+
+      - name: Run backend tests (if any)
+        # Exécute les tests backend dans un conteneur backend temporaire
+        run: docker compose run --rm backend poetry run python manage.py test
+        env:
+          # Passe les variables d'environnement nécessaires pour les tests
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          # Définissez APP_ENV pour l'environnement de CI
+          APP_ENV: docker
+
+
+      - name: Run frontend tests (if any)
+        # Exécute les tests frontend dans un conteneur frontend temporaire
+        # Vous devrez peut-être ajuster cette commande en fonction de votre configuration de test frontend
+        run: docker compose run --rm frontend npm test
