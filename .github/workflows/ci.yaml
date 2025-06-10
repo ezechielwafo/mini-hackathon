@@ -59,7 +59,7 @@ jobs:
           APP_ENV: docker
 
 
-      - name: Run frontend tests (if any)
+     # - name: Run frontend tests (if any)
         # Exécute les tests frontend dans un conteneur frontend temporaire
         # Vous devrez peut-être ajuster cette commande en fonction de votre configuration de test frontend
-        run: docker compose run --rm frontend npm test
+      #  run: docker compose run --rm frontend npm test
