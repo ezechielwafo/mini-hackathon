@@ -1,0 +1,123 @@
+version: '3.8' # Vous pouvez laisser ou supprimer cette ligne, l'avertissement persistera si présente
+
+services:
+
+  database:
+    image: postgres:13-alpine # Utilisez une image PostgreSQL légère
+    container_name: taskmaster_db
+    # Le port 5432 n'a pas besoin d'être exposé sur l'hôte si seul le backend y accède
+    # ports:
+    #   - "5432:5432"
+    environment:
+      POSTGRES_DB: ${DB_NAME:-taskmaster_db} # Nom de la base de données (lu depuis .env ou valeur par défaut)
+      POSTGRES_USER: ${DB_USER:-taskmaster_user} # Utilisateur de la base de données
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-taskmaster_password} # Mot de passe de la base de données
+    volumes:
+      - db_data:/var/lib/postgresql/data # Volume pour persister les données de la base de données
+    healthcheck: # Vérification de l'état de la base de données
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-taskmaster_user} -d ${DB_NAME:-taskmaster_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend # Connecte la base de données au réseau backend
+
+  backend:
+    build:
+      context: ./server # Spécifie le répertoire de construction
+      dockerfile: Dockerfile # Spécifie le nom du Dockerfile
+    container_name: taskmaster_backend
+    env_file: .env # Lit les variables d'environnement depuis le fichier .env racine (y compris APP_ENV, SECRET_KEY, DB_*, LOCAL_DATABASE_URL)
+    entrypoint: |
+      /bin/sh -c "
+      echo 'Waiting for database...'
+      # Attendre que la base de données soit prête (optionnel, depends_on aide déjà, mais un petit délai peut aider)
+      # Vous pouvez utiliser 'wait-for-it.sh' ou une boucle nc plus robuste si nécessaire
+      sleep 5
+      echo 'Applying migrations...'
+      # Appliquer les migrations de base de données
+      poetry run python manage.py migrate --noinput &&
+      echo 'Collecting static files...'
+      # Collecter les fichiers statiques (utile pour la production avec Nginx)
+      poetry run python manage.py collectstatic --noinput &&
+      echo 'Creating superuser (if not exists)...'
+      # Créer un superutilisateur (optionnel, nécessite des variables d'env dans .env)
+      # Assurez-vous que SUPERUSER_USERNAME, SUPERUSER_EMAIL, SUPERUSER_PASSWORD sont définis dans .env
+      poetry run python manage.py createsuperuser --noinput || true
+      "
+    command: poetry run gunicorn server_config.wsgi:application --bind 0.0.0.0:8000 # La commande pour lancer le serveur Gunicorn après l'entrypoint
+    # Le port 8000 n'a pas besoin d'être exposé sur l'hôte si seul Nginx y accède
+    # ports:
+    #   - "8000:8000" # Mappe le port 8000 de l'hôte au port 8000 du conteneur (utile pour le débogage direct)
+    expose: # Expose le port 8000 à d'autres services sur le réseau Docker
+      - "8000"
+    volumes:
+      - ./server:/app # Mappe le code source pour le développement
+      # Mappe le répertoire staticfiles pour que Nginx puisse y accéder (si Nginx sert les statiques)
+      - static_volume:/app/staticfiles
+
+    networks:
+      - backend # Connecte le backend au réseau backend
+
+    depends_on:
+      database:
+        condition: service_healthy # Démarre le backend seulement si la base de données est saine
+
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: taskmaster_frontend
+    env_file: .env # Lit les variables du .env racine (y compris APP_ENV, VITE_API_URL_LOCAL, VITE_API_URL_DOCKER)
+    command: npm run dev -- --host 0.0.0.0 # Commande pour lancer le serveur de développement Vite (écoute sur toutes les interfaces)
+    volumes:
+      - ./client:/app # Mappe le code source pour le développement
+      - /app/node_modules # Volume anonyme pour éviter de mapper node_modules de l'hôte (peut causer des problèmes)
+    # Le port 5173 n'a pas besoin d'être exposé sur l'hôte si seul Nginx y accède
+    # ports:
+    #   - "5173:5173" # Mappe le port 5173 de l'hôte au port 5173 du conteneur (utile pour le débogage direct)
+    expose: # Expose le port 5173 à d'autres services sur le réseau Docker
+      - "5173"
+    environment:
+      # Passe l'URL de l'API appropriée au conteneur frontend en fonction de l'environnement Docker
+      # Le frontend accède à l'API via Nginx dans l'environnement Docker
+      VITE_API_URL: http://nginx/api/
+      # Si vous voulez que le frontend puisse basculer entre Docker et Local,
+      # vous devrez gérer cela côté frontend en lisant APP_ENV et en choisissant l'URL appropriée.
+      # Par exemple, dans votre code React:
+      # const API_BASE_URL = import.meta.env.VITE_APP_ENV === 'local' ? import.meta.env.VITE_API_URL_LOCAL : import.meta.env.VITE_API_URL_DOCKER;
+    networks:
+      - frontend # Connecte le frontend à son propre réseau (ou au réseau par défaut si pas de réseau frontend dédié)
+      - backend # Connecte le frontend au réseau backend pour qu'il puisse potentiellement accéder directement au backend (moins courant avec Nginx)
+    depends_on:
+      - backend # Démarre le frontend après le backend
+
+  nginx:
+    build:
+      context: ./proxy
+      dockerfile: Dockerfile
+    container_name: taskmaster_nginx
+    ports:
+      - "8080:80" # Mappe le port 80 de l'hôte au port 80 du conteneur
+      # Si le port 80 est déjà utilisé, changez le port de l'hôte ici, par exemple:
+      # - "8080:80"
+    volumes:
+      - ./proxy/nginx.conf:/etc/nginx/nginx.conf:ro # Mappe le fichier de configuration Nginx
+      # Mappe le répertoire staticfiles du backend pour que Nginx puisse servir les statiques
+      - static_volume:/app/staticfiles:ro
+    networks:
+      - frontend # Connecte Nginx au réseau frontend pour rediriger le trafic vers le frontend
+      - backend # Connecte Nginx au réseau backend pour rediriger le trafic vers le backend
+    depends_on:
+      - frontend # Démarre Nginx après le frontend
+      - backend # Démarre Nginx après le backend
+
+networks:
+  backend: # Définit le réseau backend
+    driver: bridge
+  frontend: # Définit le réseau frontend (optionnel, peut utiliser le réseau par défaut)
+    driver: bridge
+
+volumes:
+  db_data: # Volume pour les données de la base de données
+  static_volume: # Volume pour les fichiers statiques collectés par le backend

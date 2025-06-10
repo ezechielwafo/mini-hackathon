@@ -3,7 +3,7 @@ name = "server"
 version = "0.1.0"
 description = ""
 authors = [
-    {name = "Your Name",email = "you@example.com"}
+    {name = "ezechielwafo",email = "michaeliezechiel@gmail.com"}
 ]
 readme = "README.md"
 requires-python = ">=3.11,<4.0"
@@ -11,7 +11,8 @@ dependencies = [
     "django (>=5.2.1,<6.0.0)",
     "djangorestframework (>=3.16.0,<4.0.0)",
     "djangorestframework-simplejwt (>=5.5.0,<6.0.0)",
-    "djoser (>=2.3.1,<3.0.0)"
+    "djoser (>=2.3.1,<3.0.0)",
+    "django-cors-headers (>=4.7.0,<5.0.0)"
 ]
 
 
