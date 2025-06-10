@@ -3,12 +3,12 @@ name: CI
 on:
   push:
     branches:
-      - main # Déclenche le workflow sur les push vers la branche main
-      - develop # Déclenche le workflow sur les push vers la branche develop
+      - master # Déclenche le workflow sur les push vers la branche main
+      - devops # Déclenche le workflow sur les push vers la branche develop
   pull_request:
     branches:
-      - main
-      - develop # Déclenche le workflow sur les pull requests vers main ou develop
+      - master
+      - devops # Déclenche le workflow sur les pull requests vers main ou develop
 
 jobs:
   build_and_test:

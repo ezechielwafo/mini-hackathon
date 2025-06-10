@@ -4,7 +4,7 @@ services:
 
   database:
     image: postgres:13-alpine # Utilisez une image PostgreSQL légère
-    container_name: taskmaster_db
+    container_name: taskmaster_dbs
     # Le port 5432 n'a pas besoin d'être exposé sur l'hôte si seul le backend y accède
     # ports:
     #   - "5432:5432"
@@ -26,7 +26,7 @@ services:
     build:
       context: ./server # Spécifie le répertoire de construction
       dockerfile: Dockerfile # Spécifie le nom du Dockerfile
-    container_name: taskmaster_backend
+    container_name: taskmaster_backends
     env_file: .env # Lit les variables d'environnement depuis le fichier .env racine (y compris APP_ENV, SECRET_KEY, DB_*, LOCAL_DATABASE_URL)
     entrypoint: |
       /bin/sh -c "
@@ -39,13 +39,14 @@ services:
       poetry run python manage.py migrate --noinput &&
       echo 'Collecting static files...'
       # Collecter les fichiers statiques (utile pour la production avec Nginx)
-      poetry run python manage.py collectstatic --noinput &&
-      echo 'Creating superuser (if not exists)...'
+      poetry run python manage.py collectstatic --noinput
+      #echo 'Creating superuser (if not exists)...'
       # Créer un superutilisateur (optionnel, nécessite des variables d'env dans .env)
       # Assurez-vous que SUPERUSER_USERNAME, SUPERUSER_EMAIL, SUPERUSER_PASSWORD sont définis dans .env
-      poetry run python manage.py createsuperuser --noinput || true
+      #poetry run python manage.py createsuperuser --noinput || true
       "
-    command: poetry run gunicorn server_config.wsgi:application --bind 0.0.0.0:8000 # La commande pour lancer le serveur Gunicorn après l'entrypoint
+    #command: poetry run gunicorn server_config.wsgi:application --bind 0.0.0.0:8000 # La commande pour lancer le serveur Gunicorn après l'entrypoint
+    command: sleep infinity
     # Le port 8000 n'a pas besoin d'être exposé sur l'hôte si seul Nginx y accède
     # ports:
     #   - "8000:8000" # Mappe le port 8000 de l'hôte au port 8000 du conteneur (utile pour le débogage direct)
@@ -67,7 +68,7 @@ services:
     build:
       context: ./client
       dockerfile: Dockerfile
-    container_name: taskmaster_frontend
+    container_name: taskmaster_frontends
     env_file: .env # Lit les variables du .env racine (y compris APP_ENV, VITE_API_URL_LOCAL, VITE_API_URL_DOCKER)
     command: npm run dev -- --host 0.0.0.0 # Commande pour lancer le serveur de développement Vite (écoute sur toutes les interfaces)
     volumes:
@@ -96,7 +97,7 @@ services:
     build:
       context: ./proxy
       dockerfile: Dockerfile
-    container_name: taskmaster_nginx
+    container_name: taskmaster_nginxs
     ports:
       - "8080:80" # Mappe le port 80 de l'hôte au port 80 du conteneur
       # Si le port 80 est déjà utilisé, changez le port de l'hôte ici, par exemple:
