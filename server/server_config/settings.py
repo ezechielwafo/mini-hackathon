@@ -124,7 +124,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+#STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_ROOT = "/app/staticfiles"
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
@@ -164,5 +166,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173", # L'origine de votre serveur de développement Vite
     "http://127.0.0.1:5173", # Inclure aussi 127.0.0.1 au cas où
     # Ajoutez ici d'autres origines si nécessaire (par exemple, l'URL de votre frontend déployé)
+    "http://localhost:8080",
+    "http://192.168.175.1:5173",
 ]
-
+CORS_ALLOW_CREDENTIALS = True
